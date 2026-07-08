@@ -23,14 +23,19 @@
 #include "spi.h"
 #include "gpio.h"
 #include "tim.h"
+#include "utils.h"
 
 // Definitions
 // ----------------------------------------------------------------------------
-#define APP_EEPROM_CONFIG_PAGE			(1U)
+#define APP_EEPROM_CONFIG_PAGE			(4U)
 #define APP_EEPROM_BUFF_SIZE			(32U)
 #define APP_DISPLAY_REFRESH_RATE		(50U)
 #define APP_MAX_TEMPERATURE				(60U)
 #define APP_PID_ALLOWED_ERR_TIME		(200U)
+
+#define SENSOR_MIN_VALUE				(368U)
+#define SENSOR_MAX_VALUE				(3680U)
+#define SENSOR_ERROR_VALUE				(350U);
 
 // Application public variables
 // -----------------------------------------------------------------------------
@@ -46,8 +51,8 @@ uint8_t APP_Eeprom[APP_EEPROM_BUFF_SIZE];
 uint8_t APP_AngleSensorRight;
 uint8_t APP_AngleSensorLeft;
 // ----------------------------------------------
-int8_t  APP_LeftArm = 0;
-int8_t  APP_RightArm = 0;
+int8_t APP_LeftArm = 0;
+int8_t APP_RightArm = 0;
 
 // Private variables
 // -----------------------------------------------------------------------------
@@ -65,7 +70,8 @@ void app_DigInputInit(void);
 void app_PowerLed(void);
 void app_MessageLed(void);
 void app_ErrorLed(void);
-void app_EmaFilter(uint32_t input, uint32_t *output, uint16_t alpha);
+void app_Buzzer(void);
+void app_ReadSensors(void);
 
 /**
  * -----------------------------------------------------------------------------
@@ -94,6 +100,9 @@ void APP_Init(void)
 	// Sensors Power Supply
 	PowerBoard.SensorSupply.External = PWR_ON;
 	PowerBoard.SensorSupply.Internal = PWR_ON;
+
+	// Enable analog input AIN[1]
+	PowerBoard.InputsConfig.Ain1En = true;
 }
 
 /**
@@ -109,6 +118,9 @@ void APP_User(void)
 	// Update application parameters
 	if (APP_ConfigInProgress)
 		app_UpdateParameters();
+
+	// Read sensors
+	app_ReadSensors();
 
 	// Perform PID control
 	app_PID();
@@ -166,6 +178,23 @@ void app_UpdateParameters(void)
 {
 }
 
+/**
+ * -----------------------------------------------------------------------------
+ * @brief
+ * -----------------------------------------------------------------------------
+ */
+void app_ReadSensors(void)
+{
+	// Read machine position
+	APP_WorkingPosition = !GPIO_Read(GPIOC, 7);
+
+	// Read left angle sensor value
+	APP_AngleSensorLeft = (uint8_t) lintrafo(PowerBoard.Ain[0], SENSOR_MIN_VALUE, SENSOR_MAX_VALUE, 0, 90);
+
+	// Read right angle sensor value
+	APP_AngleSensorRight = (uint8_t) lintrafo(PowerBoard.Ain[1], SENSOR_MIN_VALUE, SENSOR_MAX_VALUE, 0, 90);
+}
+
 // -----------------------------------------------------------------------------
 // LEDs section
 // -----------------------------------------------------------------------------
@@ -180,7 +209,7 @@ void app_IndicatorsUpdate(void)
 	app_PowerLed();
 	app_MessageLed();
 	app_ErrorLed();
-//	app_Buzzer();
+	app_Buzzer();
 }
 
 /**
@@ -190,6 +219,10 @@ void app_IndicatorsUpdate(void)
  */
 void app_PowerLed(void)
 {
+	if (APP_AutoMode)
+		Indicator.Led.Power = LED_BLINK;
+	else
+		Indicator.Led.Power = LED_OFF;
 }
 
 /**
@@ -199,6 +232,10 @@ void app_PowerLed(void)
  */
 void app_MessageLed(void)
 {
+	if(APP_WorkingPosition)
+		Indicator.Led.Message = LED_ON;
+	else
+		Indicator.Led.Message = LED_OFF;
 }
 
 /**
@@ -208,6 +245,16 @@ void app_MessageLed(void)
  */
 void app_ErrorLed(void)
 {
+}
+
+/**
+ * -----------------------------------------------------------------------------
+ * @brief 	Buzzer
+ * -----------------------------------------------------------------------------
+ */
+void app_Buzzer(void)
+{
+
 }
 
 /**
@@ -249,25 +296,7 @@ void app_DisplayValues(void)
 
 /**
  * -----------------------------------------------------------------------------
- * @brief 			Exponential media average filter
- * -----------------------------------------------------------------------------
- * @param input
- * @param output
- * @param alpha
- * -----------------------------------------------------------------------------
- */
-void app_EmaFilter(uint32_t input, uint32_t *output, uint16_t alpha)
-{
-	// Alpha, Max= 1000
-	if (alpha > 1000)
-		alpha = 1000;
-
-	*output = (alpha * input + (1000 - alpha) * (*output)) / 1000;
-}
-
-/**
- * -----------------------------------------------------------------------------
- * @brief  Disable TIM3 and configure digital input
+ * @brief  Disable TIM8 and configure digital input
  * -----------------------------------------------------------------------------
  */
 void app_DigInputInit(void)
@@ -277,9 +306,9 @@ void app_DigInputInit(void)
 	// PC6 (Digital Input)
 	GPIO_Config_Reset(&dinConf);
 	dinConf.port = GPIOC;
-	dinConf.pin = 6;
+	dinConf.pin = 7;
 	dinConf.mode = INPUT;
 	GPIO_Init(dinConf);
 
-	TIM_Disable(TIM3);
+	TIM_Disable(TIM8);
 }
