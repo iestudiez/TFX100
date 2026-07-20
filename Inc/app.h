@@ -46,6 +46,12 @@ extern uint8_t APP_AngleSensorLeft;
 // ----------------------------------------------
 extern int8_t APP_LeftArm;
 extern int8_t APP_RightArm;
+// ----------------------------------------------
+extern uint16_t APP_PidMaxInt;
+extern uint16_t APP_PidOffset;
+extern uint32_t APP_PidKp;
+extern uint32_t APP_PidKi;
+extern uint32_t APP_PidKd;
 
 // Public functions
 // ----------------------------------------------------------------------------

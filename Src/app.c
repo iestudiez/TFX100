@@ -34,7 +34,7 @@
 #define APP_PID_ALLOWED_ERR_TIME		(200U)
 
 #define SENSOR_MIN_VALUE				(368U)
-#define SENSOR_MAX_VALUE				(3680U)
+#define SENSOR_MAX_VALUE				(3640U)
 #define SENSOR_ERROR_VALUE				(350U);
 
 // Application public variables
@@ -53,6 +53,12 @@ uint8_t APP_AngleSensorLeft;
 // ----------------------------------------------
 int8_t APP_LeftArm = 0;
 int8_t APP_RightArm = 0;
+// ----------------------------------------------
+uint16_t APP_PidMaxInt = 500;
+uint16_t APP_PidOffset = 0;
+uint32_t APP_PidKp;
+uint32_t APP_PidKi;
+uint32_t APP_PidKd;
 
 // Private variables
 // -----------------------------------------------------------------------------
