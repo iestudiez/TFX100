@@ -118,35 +118,39 @@ bool mainApp_KeyActions(GUI_TFX100App_t *ui)
 	*ui->pLeftArm = APP_ARM_HOLD;
 	*ui->pRightArm = APP_ARM_HOLD;
 
-	// Keyboard N1
-	if (KEYBOARD_Event.N1 >= 1)
-		*ui->pLeftArm = APP_ARM_UP;
-
-	// Keyboard N2
-	if (KEYBOARD_Event.N2_Up >= 1)
+	// Manual mode
+	if (*ui->pAutoMode == false)
 	{
-		*ui->pLeftArm = APP_ARM_UP;
-		*ui->pRightArm = APP_ARM_UP;
+		// Keyboard N1
+		if (KEYBOARD_Event.N1 >= 1)
+			*ui->pLeftArm = APP_ARM_UP;
+
+		// Keyboard N2
+		if (KEYBOARD_Event.N2_Up >= 1)
+		{
+			*ui->pLeftArm = APP_ARM_UP;
+			*ui->pRightArm = APP_ARM_UP;
+		}
+
+		// Keyboard N3
+		if (KEYBOARD_Event.N3 >= 1)
+			*ui->pRightArm = APP_ARM_UP;
+
+		// Keyboard N4
+		if (KEYBOARD_Event.N4_Left >= 1)
+			*ui->pLeftArm = APP_ARM_DOWN;
+
+		// Keyboard N5
+		if (KEYBOARD_Event.N5_Down >= 1)
+		{
+			*ui->pLeftArm = APP_ARM_DOWN;
+			*ui->pRightArm = APP_ARM_DOWN;
+		}
+
+		// Keyboard N6
+		if (KEYBOARD_Event.N6_Right >= 1)
+			*ui->pRightArm = APP_ARM_DOWN;
 	}
-
-	// Keyboard N3
-	if (KEYBOARD_Event.N3 >= 1)
-		*ui->pRightArm = APP_ARM_UP;
-
-	// Keyboard N4
-	if (KEYBOARD_Event.N4_Left >= 1)
-		*ui->pLeftArm = APP_ARM_DOWN;
-
-	// Keyboard N5
-	if (KEYBOARD_Event.N5_Down >= 1)
-	{
-		*ui->pLeftArm = APP_ARM_DOWN;
-		*ui->pRightArm = APP_ARM_DOWN;
-	}
-
-	// Keyboard N6
-	if (KEYBOARD_Event.N6_Right >= 1)
-		*ui->pRightArm = APP_ARM_DOWN;
 
 	ui->priv.redraw = true;
 	return false;
@@ -165,8 +169,8 @@ void mainApp_Draw(GUI_TFX100App_t *ui)
 	const uint8_t ICON_AUTOMODE_YPOS = 3;
 
 	const uint8_t SENSOR_TEXT_YPOS = 25;
-	const uint8_t SENSOR_LEFT_XPOS = 62;
-	const uint8_t SENSOR_RIGHT_XPOS = 100;
+	const uint8_t SENSOR_LEFT_XPOS = 63;
+	const uint8_t SENSOR_RIGHT_XPOS = 103;
 
 	const uint8_t SENSOR_LEVEL_LEFT = 12;
 	const uint8_t SENSOR_LEVEL_RIGHT = 106;
@@ -196,11 +200,13 @@ void mainApp_Draw(GUI_TFX100App_t *ui)
 	// Update Left Angle Sensor
 	// ------------------------------------------------------------------------
 	sprintf(txtBox, "%d", (int) *ui->pAngleSensor1);
+	GUI_DecimalPoint(txtBox, 1);
 	GLCD_DrawTextRight(txtBox, SENSOR_LEFT_XPOS, SENSOR_TEXT_YPOS, Font_NumArialBlack, 1, 1);
 
 	// Update Right Angle Sensor
 	// ------------------------------------------------------------------------
 	sprintf(txtBox, "%d", (int) *ui->pAngleSensor2);
+	GUI_DecimalPoint(txtBox, 1);
 	GLCD_DrawTextRight(txtBox, SENSOR_RIGHT_XPOS, SENSOR_TEXT_YPOS, Font_NumArialBlack, 1, 1);
 
 	// ------------------------------------------------------------------------

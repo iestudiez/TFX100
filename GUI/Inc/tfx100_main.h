@@ -16,7 +16,7 @@
 // Public definitions
 // ----------------------------------------------------------------------------
 #define SENSOR_MIN_VALUE				(0U)
-#define SENSOR_MAX_VALUE				(90U)
+#define SENSOR_MAX_VALUE				(900U)
 
 /**
  * ----------------------------------------------------------------------------
@@ -38,8 +38,8 @@ typedef struct TFX100AppPrivate_t
 typedef struct GUI_TFX100App_t
 {
 	TFX100AppPrivate_t priv;
-	uint8_t *pAngleSensor1;
-	uint8_t *pAngleSensor2;
+	int32_t *pAngleSensor1;
+	int32_t *pAngleSensor2;
 	bool *pWorkingPosition;
 	int8_t *pLeftArm;
 	int8_t *pRightArm;

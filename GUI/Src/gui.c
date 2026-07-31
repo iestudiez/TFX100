@@ -27,6 +27,9 @@
 GUI_MenuList_t MenuList_MainMenu;
 GUI_MenuList_t MenuList_Config;
 GUI_ListBox_t ListBox_Pid;
+GUI_ListBox_t ListBox_ManualSpeed;
+GUI_ListBox_t ListBox_SensorLeft;
+GUI_ListBox_t ListBox_SensorRight;
 GUI_TFX100App_t Application_Screen;
 GUI_TFX100Debug_t DebugScreen;
 GUI_TFX100Info_t InfoScreen;
@@ -75,15 +78,18 @@ void GUI_Init(void)
 	MenuList_MainMenu.item[4].run = &TFX100_VersionScreen;
 
 	// ------------------------------------------------------------------------
-	// LISTBOX CONFIGURATION
+	// MENU CONFIGURATION
 	// ------------------------------------------------------------------------
 	MenuList_Config.sTitle = "CONFIGURACION";
-	MenuList_Config.pRet = & MenuList_MainMenu;
+	MenuList_Config.pRet = &MenuList_MainMenu;
 	MenuList_Config.item[0].label = "CONFIGURACION PID";
 	MenuList_Config.item[0].run = &ListBox_Pid;
-	MenuList_Config.item[1].label = "CALIBRACION SENSORES";
-	MenuList_Config.item[1].run = NULL;
-
+	MenuList_Config.item[1].label = "VELOCIDAD MANUAL";
+	MenuList_Config.item[1].run = &ListBox_ManualSpeed;
+	MenuList_Config.item[2].label = "SENSOR IZQ. (SA1)";
+	MenuList_Config.item[2].run = &ListBox_SensorLeft;
+	MenuList_Config.item[3].label = "SENSOR DER. (SA2)";
+	MenuList_Config.item[3].run = &ListBox_SensorRight;
 
 	// ------------------------------------------------------------------------
 	// TFX100 CALIBRATION SCREEN
@@ -107,7 +113,7 @@ void GUI_Init(void)
 	// KP (Proportional term gain)
 	ListBox_Pid.item[0].sTile = "KP (PROPORCIONAL)";
 	ListBox_Pid.item[0].pInputVar = &APP_PidKp;
-	ListBox_Pid.item[0].dataType = GUI_INT32;
+	ListBox_Pid.item[0].dataType = GUI_UINT16;
 	ListBox_Pid.item[0].maxValue = 10000;
 	ListBox_Pid.item[0].decimalPos = 0;
 	ListBox_Pid.item[0].numDigits = 5;
@@ -115,7 +121,7 @@ void GUI_Init(void)
 	// KI (Integral term gain)
 	ListBox_Pid.item[1].sTile = "KI (INTEGRAL)";
 	ListBox_Pid.item[1].pInputVar = &APP_PidKi;
-	ListBox_Pid.item[1].dataType = GUI_INT32;
+	ListBox_Pid.item[1].dataType = GUI_UINT16;
 	ListBox_Pid.item[1].maxValue = 10000;
 	ListBox_Pid.item[1].decimalPos = 0;
 	ListBox_Pid.item[1].numDigits = 5;
@@ -123,7 +129,7 @@ void GUI_Init(void)
 	// KD (Derivative term gain)
 	ListBox_Pid.item[2].sTile = "KD (DERIVATIVO)";
 	ListBox_Pid.item[2].pInputVar = &APP_PidKd;
-	ListBox_Pid.item[2].dataType = GUI_INT32;
+	ListBox_Pid.item[2].dataType = GUI_UINT16;
 	ListBox_Pid.item[2].maxValue = 10000;
 	ListBox_Pid.item[2].decimalPos = 0;
 	ListBox_Pid.item[2].numDigits = 5;
@@ -143,6 +149,88 @@ void GUI_Init(void)
 	ListBox_Pid.item[4].maxValue = 1000;
 	ListBox_Pid.item[4].decimalPos = 0;
 	ListBox_Pid.item[4].numDigits = 4;
+
+	// ------------------------------------------------------------------------
+	// LISTBOX MANUAL SPEED
+	// ------------------------------------------------------------------------
+	ListBox_ManualSpeed.sTitle = "VELOCIDAD MANUAL";
+	ListBox_ManualSpeed.pRet = &MenuList_Config;
+
+	// Upward speed
+	ListBox_ManualSpeed.item[0].sTile = "VELOCIDAD ASCENSO";
+	ListBox_ManualSpeed.item[0].pInputVar = &APP_PwmUp;
+	ListBox_ManualSpeed.item[0].dataType = GUI_UINT16;
+	ListBox_ManualSpeed.item[0].maxValue = 1000;
+	ListBox_ManualSpeed.item[0].minValue = 100;
+	ListBox_ManualSpeed.item[0].decimalPos = 0;
+	ListBox_ManualSpeed.item[0].numDigits = 4;
+
+	// Downward speed
+	ListBox_ManualSpeed.item[1].sTile = "VELOCIDAD DESCENSO";
+	ListBox_ManualSpeed.item[1].pInputVar = &APP_PwmDown;
+	ListBox_ManualSpeed.item[1].dataType = GUI_UINT16;
+	ListBox_ManualSpeed.item[1].maxValue = 1000;
+	ListBox_ManualSpeed.item[1].minValue = 100;
+	ListBox_ManualSpeed.item[1].decimalPos = 0;
+	ListBox_ManualSpeed.item[1].numDigits = 4;
+
+	// ------------------------------------------------------------------------
+	// LISTBOX SENSOR SA1 CONFIGURATION
+	// ------------------------------------------------------------------------
+	ListBox_SensorLeft.sTitle = "SENSOR (SA1)";
+	ListBox_SensorLeft.pRet = &MenuList_Config;
+
+	// Sensor minimum value
+	ListBox_SensorLeft.item[0].sTile = "VALOR MINIMO";
+	ListBox_SensorLeft.item[0].pInputVar = &APP_LeftSensorMin;
+	ListBox_SensorLeft.item[0].dataType = GUI_UINT16;
+	ListBox_SensorLeft.item[0].maxValue = 4096;
+	ListBox_SensorLeft.item[0].decimalPos = 0;
+	ListBox_SensorLeft.item[0].numDigits = 4;
+
+	// Sensor maximum value
+	ListBox_SensorLeft.item[1].sTile = "VALOR MAXIMO";
+	ListBox_SensorLeft.item[1].pInputVar = &APP_LeftSensorMax;
+	ListBox_SensorLeft.item[1].dataType = GUI_UINT16;
+	ListBox_SensorLeft.item[1].maxValue = 4096;
+	ListBox_SensorLeft.item[1].decimalPos = 0;
+	ListBox_SensorLeft.item[1].numDigits = 4;
+
+	// Sensor invert value
+	ListBox_SensorLeft.item[2].sTile = "INVERTIR";
+	ListBox_SensorLeft.item[2].pInputVar = &APP_LeftSensorInv;
+	ListBox_SensorLeft.item[2].dataType = GUI_BOOLEAN;
+	ListBox_SensorLeft.item[2].sBoolTrue = "SI";
+	ListBox_SensorLeft.item[2].sBoolFalse = "NO";
+
+	// ------------------------------------------------------------------------
+	// LISTBOX SENSOR SA2 CONFIGURATION
+	// ------------------------------------------------------------------------
+	ListBox_SensorRight.sTitle = "SENSOR (SA2)";
+	ListBox_SensorRight.pRet = &MenuList_Config;
+
+	// Sensor minimum value
+	ListBox_SensorRight.item[0].sTile = "VALOR MINIMO";
+	ListBox_SensorRight.item[0].pInputVar = &APP_RightSensorMin;
+	ListBox_SensorRight.item[0].dataType = GUI_UINT16;
+	ListBox_SensorRight.item[0].maxValue = 4096;
+	ListBox_SensorRight.item[0].decimalPos = 0;
+	ListBox_SensorRight.item[0].numDigits = 4;
+
+	// Sensor maximum value
+	ListBox_SensorRight.item[1].sTile = "VALOR MAXIMO";
+	ListBox_SensorRight.item[1].pInputVar = &APP_RightSensorMax;
+	ListBox_SensorRight.item[1].dataType = GUI_UINT16;
+	ListBox_SensorRight.item[1].maxValue = 4096;
+	ListBox_SensorRight.item[1].decimalPos = 0;
+	ListBox_SensorRight.item[1].numDigits = 4;
+
+	// Sensor invert value
+	ListBox_SensorRight.item[2].sTile = "INVERTIR";
+	ListBox_SensorRight.item[2].pInputVar = &APP_RightSensorInv;
+	ListBox_SensorRight.item[2].dataType = GUI_BOOLEAN;
+	ListBox_SensorRight.item[2].sBoolTrue = "SI";
+	ListBox_SensorRight.item[2].sBoolFalse = "NO";
 
 	// ------------------------------------------------------------------------
 	// MSGBOX SAVE CONFIGURATION
@@ -176,6 +264,9 @@ void GUI_Update(void)
 	GUI_MenuList(&MenuList_MainMenu);
 	GUI_MenuList(&MenuList_Config);
 	GUI_ListBox(&ListBox_Pid);
+	GUI_ListBox(&ListBox_ManualSpeed);
+	GUI_ListBox(&ListBox_SensorLeft);
+	GUI_ListBox(&ListBox_SensorRight);
 	GUI_MsgBox(&MsgBox_SaveConf);
 	GUI_TFX100DebugScreen(&DebugScreen);
 	GUI_TFX100VersionScreen(&TFX100_VersionScreen);
@@ -183,9 +274,9 @@ void GUI_Update(void)
 	// Run all input boxes
 	GUI_InputBox(GUI_InputBox_DefaultPointer);
 
-//	// Set configuration in progress flag
-//	if ((ListBox_Config.priv.status == GUI_STATUS_ENABLED) || (ListBox_Pid.priv.status == GUI_STATUS_ENABLED))
-//		APP_ConfigInProgress = true;
-//	else
-//		APP_ConfigInProgress = false;
+	// Set configuration in progress flag
+	if ((MenuList_Config.priv.status == GUI_STATUS_ENABLED))
+		APP_ConfigInProgress = true;
+	else
+		APP_ConfigInProgress = false;
 }

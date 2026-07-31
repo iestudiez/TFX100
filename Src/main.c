@@ -16,7 +16,7 @@
 #include "system_cx100.h"
 #include "indicators.h"
 #include "keyboard.h"
-#include "gnss.h"
+#include "uart.h"
 #include "scheduler.h"
 #include "lcd.h"
 #include "pwrboard.h"
@@ -51,7 +51,8 @@ int main()
 	SCHEDULER_AddTask(PWRBOARD_Update, 0, 10);
 	SCHEDULER_AddTask(LCD_Update, 1, 10);
 	SCHEDULER_AddTask(APP_User, 2, 10);
-	SCHEDULER_AddTask(UI_Update, 3, 200);
+	SCHEDULER_AddTask(COMM_Update, 3, 10);
+	SCHEDULER_AddTask(UI_Update, 4, 200);
 	SCHEDULER_Start();
 
 	while (1)
@@ -80,9 +81,6 @@ void UI_Update(void)
 void COMM_Update(void)
 {
 	// RS233 Communications
-	GNSS_Update();
-
-	// CAN Communications( RX)
-	// CAN_ReadMsg(CAN1, &gCanMsgRx);
+	APP_SendPlotterData();
 }
 
