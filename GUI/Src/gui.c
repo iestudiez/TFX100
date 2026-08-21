@@ -49,8 +49,8 @@ void GUI_Init(void)
 	Application_Screen.priv.status = GUI_STATUS_ENABLED;
 	Application_Screen.pRet = &MenuList_MainMenu;
 	Application_Screen.pDebugScreen = &DebugScreen;
-	Application_Screen.pAngleSensor1 = &APP_AngleSensorLeft;
-	Application_Screen.pAngleSensor2 = &APP_AngleSensorRight;
+	Application_Screen.pAngleSensor1 = &APP_DisplaySensorLeft;
+	Application_Screen.pAngleSensor2 = &APP_DisplaySensorRight;
 	Application_Screen.pWorkingPosition = &APP_WorkingPosition;
 	Application_Screen.pAutoMode = &APP_AutoMode;
 	Application_Screen.pLeftArm = &APP_LeftArm;
@@ -84,7 +84,7 @@ void GUI_Init(void)
 	MenuList_Config.pRet = &MenuList_MainMenu;
 	MenuList_Config.item[0].label = "CONFIGURACION PID";
 	MenuList_Config.item[0].run = &ListBox_Pid;
-	MenuList_Config.item[1].label = "VELOCIDAD MANUAL";
+	MenuList_Config.item[1].label = "PARAMETROS OPERATIVOS";
 	MenuList_Config.item[1].run = &ListBox_ManualSpeed;
 	MenuList_Config.item[2].label = "SENSOR IZQ. (SA1)";
 	MenuList_Config.item[2].run = &ListBox_SensorLeft;
@@ -151,28 +151,56 @@ void GUI_Init(void)
 	ListBox_Pid.item[4].numDigits = 4;
 
 	// ------------------------------------------------------------------------
-	// LISTBOX MANUAL SPEED
+	// LISTBOX OPERATIGN PARAMETERS
 	// ------------------------------------------------------------------------
-	ListBox_ManualSpeed.sTitle = "VELOCIDAD MANUAL";
+	ListBox_ManualSpeed.sTitle = "PARAMETROS OPERATIVOS";
 	ListBox_ManualSpeed.pRet = &MenuList_Config;
 
-	// Upward speed
-	ListBox_ManualSpeed.item[0].sTile = "VELOCIDAD ASCENSO";
-	ListBox_ManualSpeed.item[0].pInputVar = &APP_PwmUp;
+	// Setpoint
+	ListBox_ManualSpeed.item[0].sTile = "SETPOINT";
+	ListBox_ManualSpeed.item[0].pInputVar = &APP_Setpoint;
 	ListBox_ManualSpeed.item[0].dataType = GUI_UINT16;
-	ListBox_ManualSpeed.item[0].maxValue = 1000;
-	ListBox_ManualSpeed.item[0].minValue = 100;
-	ListBox_ManualSpeed.item[0].decimalPos = 0;
-	ListBox_ManualSpeed.item[0].numDigits = 4;
+	ListBox_ManualSpeed.item[0].maxValue = 900;
+	ListBox_ManualSpeed.item[0].minValue = 0;
+	ListBox_ManualSpeed.item[0].decimalPos = 1;
+	ListBox_ManualSpeed.item[0].numDigits = 3;
+	ListBox_ManualSpeed.item[0].sUnit = "grad";
 
-	// Downward speed
-	ListBox_ManualSpeed.item[1].sTile = "VELOCIDAD DESCENSO";
-	ListBox_ManualSpeed.item[1].pInputVar = &APP_PwmDown;
+	// Lifting speed
+	ListBox_ManualSpeed.item[1].sTile = "VELOCIDAD LEVANTE";
+	ListBox_ManualSpeed.item[1].pInputVar = &APP_PwmUp;
 	ListBox_ManualSpeed.item[1].dataType = GUI_UINT16;
 	ListBox_ManualSpeed.item[1].maxValue = 1000;
 	ListBox_ManualSpeed.item[1].minValue = 100;
 	ListBox_ManualSpeed.item[1].decimalPos = 0;
 	ListBox_ManualSpeed.item[1].numDigits = 4;
+
+	// Descent speed
+	ListBox_ManualSpeed.item[2].sTile = "VELOCIDAD DESCENSO";
+	ListBox_ManualSpeed.item[2].pInputVar = &APP_PwmDown;
+	ListBox_ManualSpeed.item[2].dataType = GUI_UINT16;
+	ListBox_ManualSpeed.item[2].maxValue = 1000;
+	ListBox_ManualSpeed.item[2].minValue = 100;
+	ListBox_ManualSpeed.item[2].decimalPos = 0;
+	ListBox_ManualSpeed.item[2].numDigits = 4;
+
+	// Lifting time
+	ListBox_ManualSpeed.item[3].sTile = "TIEMPO ASCENSO";
+	ListBox_ManualSpeed.item[3].pInputVar = &APP_LiftingTime;
+	ListBox_ManualSpeed.item[3].dataType = GUI_UINT16;
+	ListBox_ManualSpeed.item[3].maxValue = 250;
+	ListBox_ManualSpeed.item[3].minValue = 10;
+	ListBox_ManualSpeed.item[3].decimalPos = 1;
+	ListBox_ManualSpeed.item[3].numDigits = 3;
+	ListBox_ManualSpeed.item[3].sUnit = "seg";
+
+	// Serial communication
+	ListBox_ManualSpeed.item[4].sTile = "PLOTTER MODE";
+	ListBox_ManualSpeed.item[4].pInputVar = &APP_SerialMode;
+	ListBox_ManualSpeed.item[4].dataType = GUI_BOOLEAN;
+	ListBox_ManualSpeed.item[4].sBoolTrue = "STD";
+	ListBox_ManualSpeed.item[4].sBoolFalse = "PID";
+
 
 	// ------------------------------------------------------------------------
 	// LISTBOX SENSOR SA1 CONFIGURATION

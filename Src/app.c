@@ -17,6 +17,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "uart.h"
+#include "rcc.h"
 #include "app.h"
 #include "eeprom.h"
 #include "indicators.h"
@@ -27,27 +28,41 @@
 #include "gpio.h"
 #include "tim.h"
 #include "utils.h"
+#include "debug.h"
 
 // Definitions
 // ----------------------------------------------------------------------------
 #define APP_EEPROM_CONFIG_PAGE			(4U)
 #define APP_EEPROM_BUFF_SIZE			(32U)
-#define APP_DISPLAY_REFRESH_RATE		(50U)
-#define APP_MAX_TEMPERATURE				(60U)
+#define APP_DISPLAY_REFRESH_RATE		(20U)
 #define APP_PID_ALLOWED_ERR_TIME		(200U)
-#define APP_PID_P_DIVIDER				(1000)
-#define APP_PID_I_DIVIDER				(100000)
-#define APP_PID_D_DIVIDER				(100)
+#define APP_PID_P_DIVIDER				(10000)
+#define APP_PID_I_DIVIDER				(10000)
+#define APP_PID_D_DIVIDER				(1000)
+
+#define APP_TEMP_ERR_VALUE				(60U)
+#define APP_SENSOR_ERR_VALUE			(260)
+#define APP_VOLTAGE_MIN_VALUE			(11000)
+#define APP_VOLTAGE_MAX_VALUE			(16000)
+#define APP_OVERCURRENT_ERR_VALUE		(5000)
 
 #define SENSOR_ANGLE_RANGE				(900)
 #define SENSOR_MIN_VALUE				(368U)
 #define SENSOR_MAX_VALUE				(3640U)
-#define SENSOR_ERROR_VALUE				(350U);
+#define SENSOR_ERROR_VALUE				(350U)
 
-#define PWM_OUT_A1						(PowerBoard.Out[0].DutyCycle)
-#define PWM_OUT_B1						(PowerBoard.Out[2].DutyCycle)
-#define PWM_OUT_A2						(PowerBoard.Out[1].DutyCycle)
-#define PWM_OUT_B2						(PowerBoard.Out[3].DutyCycle)
+#define RAW_LEFT_SENSOR					(PowerBoard.Ain[0])
+#define RAW_RIGHT_SENSOR				(PowerBoard.Ain[1])
+
+#define PWM_OUT_B1						(PowerBoard.Out[0].DutyCycle)
+#define PWM_OUT_A1						(PowerBoard.Out[2].DutyCycle)
+#define PWM_OUT_B2						(PowerBoard.Out[1].DutyCycle)
+#define PWM_OUT_A2						(PowerBoard.Out[3].DutyCycle)
+
+#define PWM_LEFT_OUT_UP					PWM_OUT_B1
+#define PWM_LEFT_OUT_DOWN				PWM_OUT_A1
+#define PWM_RIGHT_OUT_UP				PWM_OUT_B2
+#define PWM_RIGHT_OUT_DOWN				PWM_OUT_A2
 
 // Application public variables
 // -----------------------------------------------------------------------------
@@ -58,6 +73,7 @@ bool APP_WorkingPosition = false;
 bool APP_ConfigInProgress = false;
 bool APP_LeftSensorInv;
 bool APP_RightSensorInv;
+bool APP_SerialMode = false;
 // ----------------------------------------------
 uint8_t APP_ErrorCode = 0;
 uint8_t APP_StorageByte;
@@ -67,11 +83,15 @@ uint16_t APP_LeftSensorMin;
 uint16_t APP_LeftSensorMax;
 uint16_t APP_RightSensorMin;
 uint16_t APP_RightSensorMax;
+uint16_t APP_LiftingTime;
 // ----------------------------------------------
-int32_t APP_AngleSensorRight;
 int32_t APP_AngleSensorLeft;
-int32_t APP_LeftSetpoint = 450;
-int32_t APP_RightSetpoint = 450;
+int32_t APP_AngleSensorRight;
+int32_t APP_DisplaySensorLeft;
+int32_t APP_DisplaySensorRight;
+int32_t APP_Setpoint;
+int32_t APP_LeftSetpoint;
+int32_t APP_RightSetpoint;
 // ----------------------------------------------
 int8_t APP_LeftArm;
 int8_t APP_RightArm;
@@ -88,6 +108,7 @@ uint16_t APP_PidKd;
 // -----------------------------------------------------------------------------
 PID_Position_t APP_PidLeft;
 PID_Position_t APP_PidRight;
+bool APP_PidEnabled = false;
 
 // Function Prototypes
 // -----------------------------------------------------------------------------
@@ -107,6 +128,8 @@ void app_ErrorLed(void);
 void app_Buzzer(void);
 void app_ReadSensors(void);
 void app_ManualMode(void);
+void app_AutoMode(void);
+void app_ConfigureUART(void);
 
 /**
  * -----------------------------------------------------------------------------
@@ -137,37 +160,38 @@ void APP_Init(void)
 	PowerBoard.SensorSupply.Internal = PWR_ON;
 
 	// Enable USART2
+	app_ConfigureUART();
 	UART_Enable(USART2);
 
 	// Configure left arm PID
-	APP_PidLeft.pEnable = &APP_AutoMode;
+	APP_PidLeft.pEnable = &APP_PidEnabled;
 	APP_PidLeft.Kp = APP_PidKp;
 	APP_PidLeft.Ki = APP_PidKi;
 	APP_PidLeft.Kd = APP_PidKd;
-	APP_PidLeft.proDiv = APP_PID_P_DIVIDER;
-	APP_PidLeft.intDiv = APP_PID_I_DIVIDER;
-	APP_PidLeft.derDiv = APP_PID_D_DIVIDER;
+	APP_PidLeft.kpDiv = APP_PID_P_DIVIDER;
+	APP_PidLeft.kiDiv = APP_PID_I_DIVIDER;
+	APP_PidLeft.kdDiv = APP_PID_D_DIVIDER;
 	APP_PidLeft.maxIntegral = APP_PidMaxInt;
 	APP_PidLeft.offset = APP_PidOffset;
 	APP_PidLeft.pFeedback = &APP_AngleSensorLeft;
 	APP_PidLeft.pSetpoint = &APP_LeftSetpoint;
-	APP_PidLeft.pOutA = &PWM_OUT_A1;
-	APP_PidLeft.pOutB = &PWM_OUT_B1;
+	APP_PidLeft.pOutA = &PWM_LEFT_OUT_UP;
+	APP_PidLeft.pOutB = &PWM_LEFT_OUT_DOWN;
 
 	// Configure right arm PID
-	APP_PidRight.pEnable = &APP_AutoMode;
+	APP_PidRight.pEnable = &APP_PidEnabled;
 	APP_PidRight.Kp = APP_PidKp;
 	APP_PidRight.Ki = APP_PidKi;
 	APP_PidRight.Kd = APP_PidKd;
-	APP_PidRight.proDiv = APP_PID_P_DIVIDER;
-	APP_PidRight.intDiv = APP_PID_I_DIVIDER;
-	APP_PidRight.derDiv = APP_PID_D_DIVIDER;
+	APP_PidRight.kpDiv = APP_PID_P_DIVIDER;
+	APP_PidRight.kiDiv = APP_PID_I_DIVIDER;
+	APP_PidRight.kdDiv = APP_PID_D_DIVIDER;
 	APP_PidRight.maxIntegral = APP_PidMaxInt;
 	APP_PidRight.offset = APP_PidOffset;
 	APP_PidRight.pFeedback = &APP_AngleSensorRight;
 	APP_PidRight.pSetpoint = &APP_RightSetpoint;
-	APP_PidRight.pOutA = &PWM_OUT_A2;
-	APP_PidRight.pOutB = &PWM_OUT_B2;
+	APP_PidRight.pOutA = &PWM_RIGHT_OUT_UP;
+	APP_PidRight.pOutB = &PWM_RIGHT_OUT_DOWN;
 
 }
 
@@ -191,8 +215,10 @@ void APP_User(void)
 	// Perform PID control
 	app_PID();
 
-	// Manual mode
-	if (APP_AutoMode == false)
+	// Select operating mode
+	if (APP_AutoMode)
+		app_AutoMode();
+	else
 		app_ManualMode();
 
 	// Report error code
@@ -219,25 +245,67 @@ void app_PID(void)
 
 /**
  * -----------------------------------------------------------------------------
+ * @brief 	Automatic mode operation
+ * -----------------------------------------------------------------------------
+ */
+void app_AutoMode(void)
+{
+	static uint16_t timeCnt = 0;
+	uint16_t waitingTime;
+
+	// Check working position
+	if (APP_WorkingPosition)
+	{
+		APP_PidEnabled = true;
+		timeCnt = 0;
+		return;
+	}
+
+	// Disable closed loop control
+	APP_PidEnabled = false;
+
+	// Time counter
+	timeCnt++;
+	waitingTime = APP_LiftingTime * 10;
+
+	if (timeCnt <= waitingTime)
+	{
+		// Go to the top position
+		PWM_LEFT_OUT_UP = 800;
+		PWM_RIGHT_OUT_UP = 800;
+	}
+	else
+	{
+		PWM_LEFT_OUT_UP = 0;
+		PWM_RIGHT_OUT_UP = 0;
+		timeCnt = waitingTime;
+	}
+}
+
+/**
+ * -----------------------------------------------------------------------------
  * @brief 	Manual mode operation
  * -----------------------------------------------------------------------------
  */
 void app_ManualMode(void)
 {
+	// Disable closed loop control
+	APP_PidEnabled = false;
+
 	// Seeder Left Arm Control
 	switch (APP_LeftArm)
 	{
 	case APP_ARM_HOLD:
-		PWM_OUT_A1 = 0;
-		PWM_OUT_B1 = 0;
+		PWM_LEFT_OUT_UP = 0;
+		PWM_LEFT_OUT_DOWN = 0;
 		break;
 	case APP_ARM_UP:
-		PWM_OUT_A1 = APP_PwmUp;
-		PWM_OUT_B1 = 0;
+		PWM_LEFT_OUT_UP = APP_PwmUp;
+		PWM_LEFT_OUT_DOWN = 0;
 		break;
 	case APP_ARM_DOWN:
-		PWM_OUT_A1 = 0;
-		PWM_OUT_B1 = APP_PwmDown;
+		PWM_LEFT_OUT_UP = 0;
+		PWM_LEFT_OUT_DOWN = APP_PwmDown;
 		break;
 	}
 
@@ -245,16 +313,16 @@ void app_ManualMode(void)
 	switch (APP_RightArm)
 	{
 	case APP_ARM_HOLD:
-		PWM_OUT_A2 = 0;
-		PWM_OUT_B2 = 0;
+		PWM_RIGHT_OUT_UP = 0;
+		PWM_RIGHT_OUT_DOWN = 0;
 		break;
 	case APP_ARM_UP:
-		PWM_OUT_A2 = APP_PwmUp;
-		PWM_OUT_B2 = 0;
+		PWM_RIGHT_OUT_UP = APP_PwmUp;
+		PWM_RIGHT_OUT_DOWN = 0;
 		break;
 	case APP_ARM_DOWN:
-		PWM_OUT_A2 = 0;
-		PWM_OUT_B2 = APP_PwmDown;
+		PWM_RIGHT_OUT_UP = 0;
+		PWM_RIGHT_OUT_DOWN = APP_PwmDown;
 		break;
 	}
 }
@@ -281,6 +349,8 @@ void app_SaveConfiguration(void)
 	EEPROM_StoreWord(&APP_Eeprom[16], APP_PidKd);
 	EEPROM_StoreWord(&APP_Eeprom[18], APP_PwmUp);
 	EEPROM_StoreWord(&APP_Eeprom[20], APP_PwmDown);
+	EEPROM_StoreWord(&APP_Eeprom[22], APP_LiftingTime);
+	EEPROM_StoreWord(&APP_Eeprom[24], (uint16_t) APP_Setpoint);
 	APP_Eeprom[31] = APP_StorageByte;
 
 	// Save data to EEPROM
@@ -312,9 +382,16 @@ void app_LoadConfiguration(void)
 	APP_PidKd = EEPROM_GetWord(&APP_Eeprom[16]);
 	APP_PwmUp = EEPROM_GetWord(&APP_Eeprom[18]);
 	APP_PwmDown = EEPROM_GetWord(&APP_Eeprom[20]);
+	APP_LiftingTime = EEPROM_GetWord(&APP_Eeprom[22]);
+	APP_Setpoint = (uint16_t) EEPROM_GetWord(&APP_Eeprom[24]);
 	APP_StorageByte = APP_Eeprom[31];
 
+	// Assign boolean variables
 	app_ReadStorageByte();
+
+	// Assign setpoint values
+	APP_LeftSetpoint = APP_Setpoint;
+	APP_RightSetpoint = APP_Setpoint;
 }
 
 /**
@@ -324,6 +401,10 @@ void app_LoadConfiguration(void)
  */
 void app_UpdateParameters(void)
 {
+	// Setpoint
+	APP_LeftSetpoint = APP_Setpoint;
+	APP_RightSetpoint = APP_Setpoint;
+
 	// Configure left arm PID
 	APP_PidLeft.Kp = APP_PidKp;
 	APP_PidLeft.Ki = APP_PidKi;
@@ -341,24 +422,26 @@ void app_UpdateParameters(void)
 
 /**
  * -----------------------------------------------------------------------------
- * @brief	Write storage slot
+ * @brief	Write storage byte
  * -----------------------------------------------------------------------------
  */
 void app_WriteStorageByte(void)
 {
 	EEPROM_PackByte(&APP_StorageByte, APP_LeftSensorInv, 0);
 	EEPROM_PackByte(&APP_StorageByte, APP_RightSensorInv, 1);
+	EEPROM_PackByte(&APP_StorageByte, APP_SerialMode, 2);
 }
 
 /**
  * -----------------------------------------------------------------------------
- * @brief	Read storage slot
+ * @brief	Read storage byte
  * -----------------------------------------------------------------------------
  */
 void app_ReadStorageByte(void)
 {
 	APP_LeftSensorInv = EEPROM_UnpackByte(APP_StorageByte, 0);
 	APP_RightSensorInv = EEPROM_UnpackByte(APP_StorageByte, 1);
+	APP_SerialMode = EEPROM_UnpackByte(APP_StorageByte, 2);
 }
 
 /**
@@ -372,18 +455,55 @@ void app_ReadSensors(void)
 	APP_WorkingPosition = !GPIO_Read(GPIOC, 7);
 
 	// Read left angle sensor value
-	APP_AngleSensorLeft = (int32_t) lintrafo(PowerBoard.Ain[0], APP_LeftSensorMin, APP_LeftSensorMax, 0, SENSOR_ANGLE_RANGE);
+	APP_AngleSensorLeft = (int32_t) lintrafo(RAW_LEFT_SENSOR, APP_LeftSensorMin, APP_LeftSensorMax, 0, SENSOR_ANGLE_RANGE);
 	if (APP_LeftSensorInv)
 		APP_AngleSensorLeft = SENSOR_ANGLE_RANGE - APP_AngleSensorLeft;
 
 	// Read right angle sensor value
-	APP_AngleSensorRight = (int32_t) lintrafo(PowerBoard.Ain[1], APP_RightSensorMin, APP_RightSensorMax, 0, SENSOR_ANGLE_RANGE);
+	APP_AngleSensorRight = (int32_t) lintrafo(RAW_RIGHT_SENSOR, APP_RightSensorMin, APP_RightSensorMax, 0, SENSOR_ANGLE_RANGE);
 	if (APP_RightSensorInv)
 		APP_AngleSensorRight = SENSOR_ANGLE_RANGE - APP_AngleSensorRight;
 }
 
+/**
+ * -----------------------------------------------------------------------------
+ * @brief	Set the error code variable
+ * -----------------------------------------------------------------------------
+ */
+void app_ErrorReport(void)
+{
+	// Check temperature
+	if (PowerBoard.Status.Temp >= (APP_TEMP_ERR_VALUE * 10))
+		APP_ErrorCode |= APP_ERR_CODE_TEMP;
+	else
+		APP_ErrorCode &= ~APP_ERR_CODE_TEMP;
+
+	// Check left sensor (SA1)
+	if (RAW_LEFT_SENSOR <= APP_SENSOR_ERR_VALUE)
+		APP_ErrorCode |= APP_ERR_CODE_SA1;
+	else
+		APP_ErrorCode &= ~APP_ERR_CODE_SA1;
+
+	// Check right sensor (SA2)
+	if (RAW_RIGHT_SENSOR <= APP_SENSOR_ERR_VALUE)
+		APP_ErrorCode |= APP_ERR_CODE_SA2;
+	else
+		APP_ErrorCode &= ~APP_ERR_CODE_SA2;
+
+	// Check battery voltage
+	if (PowerBoard.Status.VBus < APP_VOLTAGE_MIN_VALUE || PowerBoard.Status.VBus > APP_VOLTAGE_MAX_VALUE)
+		APP_ErrorCode |= APP_ERR_CODE_BAT;
+	else
+		APP_ErrorCode &= ~APP_ERR_CODE_BAT;
+
+	// Overcurrent
+	if (PowerBoard.Status.Current >= APP_OVERCURRENT_ERR_VALUE)
+		APP_ErrorCode |= APP_ERR_CODE_OVC;
+
+}
+
 // -----------------------------------------------------------------------------
-// LEDs section
+// Indicators section
 // -----------------------------------------------------------------------------
 
 /**
@@ -432,6 +552,10 @@ void app_MessageLed(void)
  */
 void app_ErrorLed(void)
 {
+	if (APP_ErrorCode)
+		Indicator.Led.Error = LED_BLINK;
+	else
+		Indicator.Led.Error = LED_OFF;
 }
 
 /**
@@ -442,22 +566,6 @@ void app_ErrorLed(void)
 void app_Buzzer(void)
 {
 
-}
-
-/**
- * -----------------------------------------------------------------------------
- * @brief	Set the error code variable
- * -----------------------------------------------------------------------------
- */
-void app_ErrorReport(void)
-{
-	// Check PID error
-
-	// Check temperature
-	if (PowerBoard.Status.Temp >= (APP_MAX_TEMPERATURE * 10))
-		APP_ErrorCode |= APP_ERROR_TEMP;
-	else
-		APP_ErrorCode &= ~APP_ERROR_TEMP;
 }
 
 /**
@@ -476,6 +584,8 @@ void app_DisplayValues(void)
 	if (displayCounter == APP_DISPLAY_REFRESH_RATE)
 	{
 		// Assignment of process variables to display variables
+		emafilter(APP_AngleSensorLeft, &APP_DisplaySensorLeft, 200);
+		emafilter(APP_AngleSensorRight, &APP_DisplaySensorRight, 200);
 
 		displayCounter = 0;
 	}
@@ -485,22 +595,24 @@ void app_DisplayValues(void)
  * -----------------------------------------------------------------------------
  * @brief 			Send plotter data to the RS232 port
  * -----------------------------------------------------------------------------
- * @param msg		Message to send
- * -----------------------------------------------------------------------------
  */
 void APP_SendPlotterData(void)
 {
-	sprintf(UART_TxBuffer, "$%d %d %d;", (int) APP_LeftSetpoint, (int) APP_AngleSensorLeft, (int) APP_AngleSensorRight);
 
-	DMA1_Stream6->NDTR = strlen(UART_TxBuffer);
-	DMA_Stream_Enable(DMA1_Stream6);
+	// Build data to send (Better Serial Plotter Windows Application)
+	if (APP_SerialMode)
+		// Setpoint mode
+		sprintf(UART_TxBuffer, " %d %d %d %d\n", (int) APP_LeftSetpoint, (int) APP_RightSetpoint, (int) APP_AngleSensorLeft, (int) APP_AngleSensorRight);
+	else
+		// PID mode
+		sprintf(UART_TxBuffer, " %d %d %d %d %d\n", (int) APP_LeftSetpoint, (int) APP_AngleSensorLeft, (int) APP_PidLeft.priv.propTerm, (int) APP_PidLeft.priv.intgTerm, (int) APP_PidLeft.priv.dervTerm);
 
-	// Wait for DMA1_Stream6 transmission complete
-	while (!((DMA1->HISR) & DMA_HISR_TCIF6))
-	{
-	}
 	// Clear transfer complete flag
 	DMA1->HIFCR |= DMA_HIFCR_CTCIF6;
+
+	// Start DMA transfer
+	DMA1_Stream6->NDTR = strlen(UART_TxBuffer);
+	DMA_Stream_Enable(DMA1_Stream6);
 }
 
 /**
@@ -520,4 +632,25 @@ void app_DigInputInit(void)
 	GPIO_Init(dinConf);
 
 	TIM_Disable(TIM8);
+}
+
+void app_ConfigureUART(void)
+{
+	UART_Config_t serialPort;
+
+	// UART Configuration
+	// ------------------
+	// UART2 Module
+	UART_Config_Reset(&serialPort);
+	serialPort.module = USART2;
+	serialPort.periph_clk = (uint32_t) RCC_APB1_CLK;
+	serialPort.baudrate = BR_115200;
+	serialPort.dir_tx = true;
+	serialPort.dir_rx = true;
+	serialPort.dma_tx = true;
+	serialPort.dma_rx = true;
+	serialPort.rxneie = false;
+	serialPort.tcie = false;
+	serialPort.idleie = false;
+	UART_Init(serialPort);
 }

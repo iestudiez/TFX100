@@ -23,11 +23,15 @@
 #include "gui.h"
 #include "app.h"
 
+#include "utils.h"
+
 // Definitions
 // ----------------------------------------------------------------------------
 
 // Global variables
 // ----------------------------------------------------------------------------
+//uint16_t gArray[] = { 5, 4, 3, 2, 1};
+
 
 // Private methods
 // ----------------------------------------------------------------------------
@@ -36,6 +40,8 @@ void COMM_Update(void);
 
 int main()
 {
+//	quickSort(gArray, 0, 4);
+
 	// System Initialization
 	// -------------------------------------------------------------------------
 	SYSTEM_Init();
@@ -51,7 +57,7 @@ int main()
 	SCHEDULER_AddTask(PWRBOARD_Update, 0, 10);
 	SCHEDULER_AddTask(LCD_Update, 1, 10);
 	SCHEDULER_AddTask(APP_User, 2, 10);
-	SCHEDULER_AddTask(COMM_Update, 3, 10);
+	SCHEDULER_AddTask(COMM_Update, 3, 20);
 	SCHEDULER_AddTask(UI_Update, 4, 200);
 	SCHEDULER_Start();
 

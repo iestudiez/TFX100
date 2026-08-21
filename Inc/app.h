@@ -23,10 +23,11 @@
 
 // Definitions
 // ----------------------------------------------------------------------------
-#define APP_ERROR_PID					(0x01)
-#define APP_ERROR_GPS					(0x02)
-#define APP_ERROR_CAN					(0x04)
-#define APP_ERROR_TEMP					(0x08)
+#define APP_ERR_CODE_SA1				(0x01)
+#define APP_ERR_CODE_SA2				(0x02)
+#define APP_ERR_CODE_BAT				(0x04)
+#define APP_ERR_CODE_OVC				(0x08)
+#define APP_ERR_CODE_TEMP				(0x10)
 // ----------------------------------------------------------------------------
 #define APP_ARM_UP						(1)
 #define APP_ARM_HOLD					(0)
@@ -39,11 +40,15 @@ extern bool APP_WorkingPosition;
 extern bool APP_ConfigInProgress;
 extern bool APP_LeftSensorInv;
 extern bool APP_RightSensorInv;
+extern bool APP_SerialMode;
 // ----------------------------------------------
 extern uint8_t APP_ErrorCode;
 // ----------------------------------------------
-extern int32_t APP_AngleSensorRight;
 extern int32_t APP_AngleSensorLeft;
+extern int32_t APP_AngleSensorRight;
+extern int32_t APP_DisplaySensorLeft;
+extern int32_t APP_DisplaySensorRight;
+extern int32_t APP_Setpoint;
 extern int32_t APP_LeftSetpoint;
 extern int32_t APP_RightSetpoint;
 // ---------------------------------------------
@@ -51,6 +56,7 @@ extern uint16_t APP_LeftSensorMin;
 extern uint16_t APP_LeftSensorMax;
 extern uint16_t APP_RightSensorMin;
 extern uint16_t APP_RightSensorMax;
+extern uint16_t APP_LiftingTime;
 // ----------------------------------------------
 extern int8_t APP_LeftArm;
 extern int8_t APP_RightArm;

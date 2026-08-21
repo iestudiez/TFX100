@@ -44,6 +44,7 @@ typedef struct GUI_TFX100App_t
 	int8_t *pLeftArm;
 	int8_t *pRightArm;
 	bool *pAutoMode;
+	bool *pCyclingMode;
 	void *pDebugScreen;
 	void *pRet;
 } GUI_TFX100App_t;
