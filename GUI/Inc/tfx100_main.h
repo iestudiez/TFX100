@@ -15,8 +15,8 @@
 
 // Public definitions
 // ----------------------------------------------------------------------------
-#define SENSOR_MIN_VALUE				(0U)
-#define SENSOR_MAX_VALUE				(900U)
+#define CONFIG_SENSOR_MIN_VALUE				(0U)
+#define CONFIG_SENSOR_MAX_VALUE				(900U)
 
 /**
  * ----------------------------------------------------------------------------

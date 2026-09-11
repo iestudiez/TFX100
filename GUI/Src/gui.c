@@ -34,6 +34,7 @@ GUI_TFX100App_t Application_Screen;
 GUI_TFX100Debug_t DebugScreen;
 GUI_TFX100Info_t InfoScreen;
 GUI_MsgBox_t MsgBox_SaveConf;
+GUI_MsgBox_t MsgBox_DefaultConf;
 GUI_TFX100Version_t TFX100_VersionScreen;
 
 /**
@@ -90,6 +91,8 @@ void GUI_Init(void)
 	MenuList_Config.item[2].run = &ListBox_SensorLeft;
 	MenuList_Config.item[3].label = "SENSOR DER. (SA2)";
 	MenuList_Config.item[3].run = &ListBox_SensorRight;
+	MenuList_Config.item[4].label = "RESTABLECER DISPOSITIVO";
+	MenuList_Config.item[4].run = &MsgBox_DefaultConf;
 
 	// ------------------------------------------------------------------------
 	// TFX100 CALIBRATION SCREEN
@@ -201,7 +204,6 @@ void GUI_Init(void)
 	ListBox_ManualSpeed.item[4].sBoolTrue = "STD";
 	ListBox_ManualSpeed.item[4].sBoolFalse = "PID";
 
-
 	// ------------------------------------------------------------------------
 	// LISTBOX SENSOR SA1 CONFIGURATION
 	// ------------------------------------------------------------------------
@@ -270,6 +272,15 @@ void GUI_Init(void)
 	MsgBox_SaveConf.pValue = &APP_SaveConfigRequest;
 
 	// ------------------------------------------------------------------------
+	// MSGBOX DEFAULT CONFIGURATION
+	// ------------------------------------------------------------------------
+	MsgBox_DefaultConf.pRet = &MenuList_Config;
+	MsgBox_DefaultConf.type = MSGBOX_WARNING;
+	MsgBox_DefaultConf.sMsgLine1 = "Restablecer";
+	MsgBox_DefaultConf.sMsgLine2 = "configuracion?";
+	MsgBox_DefaultConf.pValue = &APP_DefaultConfigRequest;
+
+	// ------------------------------------------------------------------------
 	// SHOW VERSION SCREEN
 	// ------------------------------------------------------------------------
 	TFX100_VersionScreen.pRet = &MenuList_MainMenu;
@@ -296,6 +307,7 @@ void GUI_Update(void)
 	GUI_ListBox(&ListBox_SensorLeft);
 	GUI_ListBox(&ListBox_SensorRight);
 	GUI_MsgBox(&MsgBox_SaveConf);
+	GUI_MsgBox(&MsgBox_DefaultConf);
 	GUI_TFX100DebugScreen(&DebugScreen);
 	GUI_TFX100VersionScreen(&TFX100_VersionScreen);
 

@@ -35,6 +35,7 @@
 // ----------------------------------------------------------------------------
 extern bool APP_AutoMode;
 extern bool APP_SaveConfigRequest;
+extern bool APP_DefaultConfigRequest;
 extern bool APP_SimuMode;
 extern bool APP_WorkingPosition;
 extern bool APP_ConfigInProgress;

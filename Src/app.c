@@ -28,7 +28,7 @@
 #include "gpio.h"
 #include "tim.h"
 #include "utils.h"
-#include "debug.h"
+#include "config.h"
 
 // Definitions
 // ----------------------------------------------------------------------------
@@ -36,20 +36,6 @@
 #define APP_EEPROM_BUFF_SIZE			(32U)
 #define APP_DISPLAY_REFRESH_RATE		(20U)
 #define APP_PID_ALLOWED_ERR_TIME		(200U)
-#define APP_PID_P_DIVIDER				(10000)
-#define APP_PID_I_DIVIDER				(10000)
-#define APP_PID_D_DIVIDER				(1000)
-
-#define APP_TEMP_ERR_VALUE				(60U)
-#define APP_SENSOR_ERR_VALUE			(260)
-#define APP_VOLTAGE_MIN_VALUE			(11000)
-#define APP_VOLTAGE_MAX_VALUE			(16000)
-#define APP_OVERCURRENT_ERR_VALUE		(5000)
-
-#define SENSOR_ANGLE_RANGE				(900)
-#define SENSOR_MIN_VALUE				(368U)
-#define SENSOR_MAX_VALUE				(3640U)
-#define SENSOR_ERROR_VALUE				(350U)
 
 #define RAW_LEFT_SENSOR					(PowerBoard.Ain[0])
 #define RAW_RIGHT_SENSOR				(PowerBoard.Ain[1])
@@ -68,47 +54,47 @@
 // -----------------------------------------------------------------------------
 bool APP_AutoMode = false;
 bool APP_SaveConfigRequest = false;
+bool APP_DefaultConfigRequest = false;
 bool APP_SimuMode = false;
 bool APP_WorkingPosition = false;
 bool APP_ConfigInProgress = false;
-bool APP_LeftSensorInv;
-bool APP_RightSensorInv;
+bool APP_LeftSensorInv = CONFIG_SENSOR_INV_LEFT;
+bool APP_RightSensorInv = CONFIG_SENSOR_INV_RIGHT;
 bool APP_SerialMode = false;
 // ----------------------------------------------
 uint8_t APP_ErrorCode = 0;
 uint8_t APP_StorageByte;
 uint8_t APP_Eeprom[APP_EEPROM_BUFF_SIZE];
 // ----------------------------------------------
-uint16_t APP_LeftSensorMin;
-uint16_t APP_LeftSensorMax;
-uint16_t APP_RightSensorMin;
-uint16_t APP_RightSensorMax;
-uint16_t APP_LiftingTime;
+uint16_t APP_LeftSensorMin = CONFIG_SENSOR_MIN_VALUE;
+uint16_t APP_LeftSensorMax = CONFIG_SENSOR_MAX_VALUE;
+uint16_t APP_RightSensorMin = CONFIG_SENSOR_MIN_VALUE;
+uint16_t APP_RightSensorMax = CONFIG_SENSOR_MAX_VALUE;
+uint16_t APP_LiftingTime = CONFIG_LIFTING_TIME;
 // ----------------------------------------------
 int32_t APP_AngleSensorLeft;
 int32_t APP_AngleSensorRight;
 int32_t APP_DisplaySensorLeft;
 int32_t APP_DisplaySensorRight;
-int32_t APP_Setpoint;
-int32_t APP_LeftSetpoint;
-int32_t APP_RightSetpoint;
+int32_t APP_Setpoint = CONFIG_ANGLE_SETPOINT;
 // ----------------------------------------------
 int8_t APP_LeftArm;
 int8_t APP_RightArm;
-uint16_t APP_PwmUp;
-uint16_t APP_PwmDown;
+uint16_t APP_PwmUp = CONFIG_MANUAL_PWM_UP;
+uint16_t APP_PwmDown = CONFIG_MANUAL_PWM_DOWN;
 // ----------------------------------------------
-uint16_t APP_PidMaxInt = 500;
-uint16_t APP_PidOffset = 0;
-uint16_t APP_PidKp;
-uint16_t APP_PidKi;
-uint16_t APP_PidKd;
+uint16_t APP_PidMaxInt = CONFIG_PID_MAX_INT;
+uint16_t APP_PidOffset = CONFIG_PID_OFFSET;
+uint16_t APP_PidKp = CONFIG_PID_KP;
+uint16_t APP_PidKi = CONFIG_PID_KI;
+uint16_t APP_PidKd = CONFIG_PID_KD;
 
 // Private variables
 // -----------------------------------------------------------------------------
 PID_Position_t APP_PidLeft;
 PID_Position_t APP_PidRight;
 bool APP_PidEnabled = false;
+bool APP_FirstExecution;
 
 // Function Prototypes
 // -----------------------------------------------------------------------------
@@ -130,6 +116,7 @@ void app_ReadSensors(void);
 void app_ManualMode(void);
 void app_AutoMode(void);
 void app_ConfigureUART(void);
+void app_DefaultConfiguration(void);
 
 /**
  * -----------------------------------------------------------------------------
@@ -168,13 +155,13 @@ void APP_Init(void)
 	APP_PidLeft.Kp = APP_PidKp;
 	APP_PidLeft.Ki = APP_PidKi;
 	APP_PidLeft.Kd = APP_PidKd;
-	APP_PidLeft.kpDiv = APP_PID_P_DIVIDER;
-	APP_PidLeft.kiDiv = APP_PID_I_DIVIDER;
-	APP_PidLeft.kdDiv = APP_PID_D_DIVIDER;
+	APP_PidLeft.kpDiv = CONFIG_PID_P_DIVIDER;
+	APP_PidLeft.kiDiv = CONFIG_PID_I_DIVIDER;
+	APP_PidLeft.kdDiv = CONFIG_PID_D_DIVIDER;
 	APP_PidLeft.maxIntegral = APP_PidMaxInt;
 	APP_PidLeft.offset = APP_PidOffset;
 	APP_PidLeft.pFeedback = &APP_AngleSensorLeft;
-	APP_PidLeft.pSetpoint = &APP_LeftSetpoint;
+	APP_PidLeft.pSetpoint = &APP_Setpoint;
 	APP_PidLeft.pOutA = &PWM_LEFT_OUT_UP;
 	APP_PidLeft.pOutB = &PWM_LEFT_OUT_DOWN;
 
@@ -183,13 +170,13 @@ void APP_Init(void)
 	APP_PidRight.Kp = APP_PidKp;
 	APP_PidRight.Ki = APP_PidKi;
 	APP_PidRight.Kd = APP_PidKd;
-	APP_PidRight.kpDiv = APP_PID_P_DIVIDER;
-	APP_PidRight.kiDiv = APP_PID_I_DIVIDER;
-	APP_PidRight.kdDiv = APP_PID_D_DIVIDER;
+	APP_PidRight.kpDiv = CONFIG_PID_P_DIVIDER;
+	APP_PidRight.kiDiv = CONFIG_PID_I_DIVIDER;
+	APP_PidRight.kdDiv = CONFIG_PID_D_DIVIDER;
 	APP_PidRight.maxIntegral = APP_PidMaxInt;
 	APP_PidRight.offset = APP_PidOffset;
 	APP_PidRight.pFeedback = &APP_AngleSensorRight;
-	APP_PidRight.pSetpoint = &APP_RightSetpoint;
+	APP_PidRight.pSetpoint = &APP_Setpoint;
 	APP_PidRight.pOutA = &PWM_RIGHT_OUT_UP;
 	APP_PidRight.pOutB = &PWM_RIGHT_OUT_DOWN;
 
@@ -230,6 +217,10 @@ void APP_User(void)
 	// Save configuration
 	if (APP_SaveConfigRequest)
 		app_SaveConfiguration();
+
+	// Load factory configuration
+	if (APP_DefaultConfigRequest)
+		app_DefaultConfiguration();
 }
 
 /**
@@ -271,6 +262,8 @@ void app_AutoMode(void)
 	if (timeCnt <= waitingTime)
 	{
 		// Go to the top position
+		PWM_LEFT_OUT_DOWN = 0;
+		PWM_RIGHT_OUT_DOWN = 0;
 		PWM_LEFT_OUT_UP = 800;
 		PWM_RIGHT_OUT_UP = 800;
 	}
@@ -370,6 +363,17 @@ void app_LoadConfiguration(void)
 	// Load data from EEPROM
 	EEPROM_Read(EEPROM_GetPageAddress(APP_EEPROM_CONFIG_PAGE), APP_Eeprom, APP_EEPROM_BUFF_SIZE);
 
+	// Read boolean variables
+	APP_StorageByte = APP_Eeprom[31];
+	app_ReadStorageByte();
+
+	// Check if the program is running on the ECU for the first time.
+	if (APP_FirstExecution)
+	{
+		APP_FirstExecution = false;
+		app_SaveConfiguration();
+	}
+
 	// Extract data
 	APP_LeftSensorMin = EEPROM_GetWord(&APP_Eeprom[0]);
 	APP_LeftSensorMax = EEPROM_GetWord(&APP_Eeprom[2]);
@@ -384,14 +388,34 @@ void app_LoadConfiguration(void)
 	APP_PwmDown = EEPROM_GetWord(&APP_Eeprom[20]);
 	APP_LiftingTime = EEPROM_GetWord(&APP_Eeprom[22]);
 	APP_Setpoint = (uint16_t) EEPROM_GetWord(&APP_Eeprom[24]);
-	APP_StorageByte = APP_Eeprom[31];
+}
 
-	// Assign boolean variables
-	app_ReadStorageByte();
+/**
+ * -----------------------------------------------------------------------------
+ * @brief 	Load default configuration
+ * -----------------------------------------------------------------------------
+ */
+void app_DefaultConfiguration(void)
+{
+	APP_DefaultConfigRequest = false;
 
-	// Assign setpoint values
-	APP_LeftSetpoint = APP_Setpoint;
-	APP_RightSetpoint = APP_Setpoint;
+	// Set default values
+	APP_LeftSensorMin = CONFIG_SENSOR_MIN_VALUE;
+	APP_LeftSensorMax = CONFIG_SENSOR_MAX_VALUE;
+	APP_RightSensorMin = CONFIG_SENSOR_MIN_VALUE;
+	APP_RightSensorMax = CONFIG_SENSOR_MAX_VALUE;
+	APP_PidMaxInt = CONFIG_PID_MAX_INT;
+	APP_PidOffset = CONFIG_PID_OFFSET;
+	APP_PidKp = CONFIG_PID_KP;
+	APP_PidKi = CONFIG_PID_KI;
+	APP_PidKd = CONFIG_PID_KD;
+	APP_PwmUp = CONFIG_MANUAL_PWM_UP;
+	APP_PwmDown = CONFIG_MANUAL_PWM_DOWN;
+	APP_LiftingTime = CONFIG_LIFTING_TIME;
+	APP_Setpoint = CONFIG_ANGLE_SETPOINT;
+
+	// Save parameters in the EEPROM
+	app_SaveConfiguration();
 }
 
 /**
@@ -401,10 +425,6 @@ void app_LoadConfiguration(void)
  */
 void app_UpdateParameters(void)
 {
-	// Setpoint
-	APP_LeftSetpoint = APP_Setpoint;
-	APP_RightSetpoint = APP_Setpoint;
-
 	// Configure left arm PID
 	APP_PidLeft.Kp = APP_PidKp;
 	APP_PidLeft.Ki = APP_PidKi;
@@ -430,6 +450,7 @@ void app_WriteStorageByte(void)
 	EEPROM_PackByte(&APP_StorageByte, APP_LeftSensorInv, 0);
 	EEPROM_PackByte(&APP_StorageByte, APP_RightSensorInv, 1);
 	EEPROM_PackByte(&APP_StorageByte, APP_SerialMode, 2);
+	EEPROM_PackByte(&APP_StorageByte, APP_FirstExecution, 7);
 }
 
 /**
@@ -442,6 +463,7 @@ void app_ReadStorageByte(void)
 	APP_LeftSensorInv = EEPROM_UnpackByte(APP_StorageByte, 0);
 	APP_RightSensorInv = EEPROM_UnpackByte(APP_StorageByte, 1);
 	APP_SerialMode = EEPROM_UnpackByte(APP_StorageByte, 2);
+	APP_FirstExecution = EEPROM_UnpackByte(APP_StorageByte, 7);
 }
 
 /**
@@ -455,14 +477,14 @@ void app_ReadSensors(void)
 	APP_WorkingPosition = !GPIO_Read(GPIOC, 7);
 
 	// Read left angle sensor value
-	APP_AngleSensorLeft = (int32_t) lintrafo(RAW_LEFT_SENSOR, APP_LeftSensorMin, APP_LeftSensorMax, 0, SENSOR_ANGLE_RANGE);
+	APP_AngleSensorLeft = (int32_t) lintrafo(RAW_LEFT_SENSOR, APP_LeftSensorMin, APP_LeftSensorMax, 0, CONFIG_SENSOR_ANGLE_RANGE);
 	if (APP_LeftSensorInv)
-		APP_AngleSensorLeft = SENSOR_ANGLE_RANGE - APP_AngleSensorLeft;
+		APP_AngleSensorLeft = CONFIG_SENSOR_ANGLE_RANGE - APP_AngleSensorLeft;
 
 	// Read right angle sensor value
-	APP_AngleSensorRight = (int32_t) lintrafo(RAW_RIGHT_SENSOR, APP_RightSensorMin, APP_RightSensorMax, 0, SENSOR_ANGLE_RANGE);
+	APP_AngleSensorRight = (int32_t) lintrafo(RAW_RIGHT_SENSOR, APP_RightSensorMin, APP_RightSensorMax, 0, CONFIG_SENSOR_ANGLE_RANGE);
 	if (APP_RightSensorInv)
-		APP_AngleSensorRight = SENSOR_ANGLE_RANGE - APP_AngleSensorRight;
+		APP_AngleSensorRight = CONFIG_SENSOR_ANGLE_RANGE - APP_AngleSensorRight;
 }
 
 /**
@@ -473,31 +495,31 @@ void app_ReadSensors(void)
 void app_ErrorReport(void)
 {
 	// Check temperature
-	if (PowerBoard.Status.Temp >= (APP_TEMP_ERR_VALUE * 10))
+	if (PowerBoard.Status.Temp >= (CONFIG_TEMP_ERR_VALUE * 10))
 		APP_ErrorCode |= APP_ERR_CODE_TEMP;
 	else
 		APP_ErrorCode &= ~APP_ERR_CODE_TEMP;
 
 	// Check left sensor (SA1)
-	if (RAW_LEFT_SENSOR <= APP_SENSOR_ERR_VALUE)
+	if (RAW_LEFT_SENSOR <= CONFIG_SENSOR_ERR_VALUE)
 		APP_ErrorCode |= APP_ERR_CODE_SA1;
 	else
 		APP_ErrorCode &= ~APP_ERR_CODE_SA1;
 
 	// Check right sensor (SA2)
-	if (RAW_RIGHT_SENSOR <= APP_SENSOR_ERR_VALUE)
+	if (RAW_RIGHT_SENSOR <= CONFIG_SENSOR_ERR_VALUE)
 		APP_ErrorCode |= APP_ERR_CODE_SA2;
 	else
 		APP_ErrorCode &= ~APP_ERR_CODE_SA2;
 
 	// Check battery voltage
-	if (PowerBoard.Status.VBus < APP_VOLTAGE_MIN_VALUE || PowerBoard.Status.VBus > APP_VOLTAGE_MAX_VALUE)
+	if (PowerBoard.Status.VBus < CONFIG_VOLTAGE_MIN_VALUE || PowerBoard.Status.VBus > CONFIG_VOLTAGE_MAX_VALUE)
 		APP_ErrorCode |= APP_ERR_CODE_BAT;
 	else
 		APP_ErrorCode &= ~APP_ERR_CODE_BAT;
 
 	// Overcurrent
-	if (PowerBoard.Status.Current >= APP_OVERCURRENT_ERR_VALUE)
+	if (PowerBoard.Status.Current >= CONFIG_OVERCURRENT_ERR_VALUE)
 		APP_ErrorCode |= APP_ERR_CODE_OVC;
 
 }
@@ -602,10 +624,10 @@ void APP_SendPlotterData(void)
 	// Build data to send (Better Serial Plotter Windows Application)
 	if (APP_SerialMode)
 		// Setpoint mode
-		sprintf(UART_TxBuffer, " %d %d %d %d\n", (int) APP_LeftSetpoint, (int) APP_RightSetpoint, (int) APP_AngleSensorLeft, (int) APP_AngleSensorRight);
+		sprintf(UART_TxBuffer, " %d %d %d\n", (int) APP_Setpoint, (int) APP_AngleSensorLeft, (int) APP_AngleSensorRight);
 	else
 		// PID mode
-		sprintf(UART_TxBuffer, " %d %d %d %d %d\n", (int) APP_LeftSetpoint, (int) APP_AngleSensorLeft, (int) APP_PidLeft.priv.propTerm, (int) APP_PidLeft.priv.intgTerm, (int) APP_PidLeft.priv.dervTerm);
+		sprintf(UART_TxBuffer, " %d %d %d %d %d\n", (int) APP_Setpoint, (int) APP_AngleSensorLeft, (int) APP_PidLeft.priv.propTerm, (int) APP_PidLeft.priv.intgTerm, (int) APP_PidLeft.priv.dervTerm);
 
 	// Clear transfer complete flag
 	DMA1->HIFCR |= DMA_HIFCR_CTCIF6;

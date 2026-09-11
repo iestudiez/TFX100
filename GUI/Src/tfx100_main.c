@@ -220,12 +220,12 @@ void mainApp_Draw(GUI_TFX100App_t *ui)
 
 	// Left Arrow level indicator
 	// ------------------------------------------------------------------------
-	level = (uint8_t) lintrafo(*ui->pAngleSensor1, SENSOR_MIN_VALUE, SENSOR_MAX_VALUE, SENSOR_LEVEL_MIN, SENSOR_LEVEL_MAX);
+	level = (uint8_t) lintrafo(*ui->pAngleSensor1, CONFIG_SENSOR_MIN_VALUE, CONFIG_SENSOR_MAX_VALUE, SENSOR_LEVEL_MIN, SENSOR_LEVEL_MAX);
 	GLCD_PutBitmap(SENSOR_LEVEL_LEFT, level, TFX100_LeftArrowLevel, 0);
 
 	// Right Arrow level indicator
 	// ------------------------------------------------------------------------
-	level = (uint8_t) lintrafo(*ui->pAngleSensor2, SENSOR_MIN_VALUE, SENSOR_MAX_VALUE, SENSOR_LEVEL_MIN, SENSOR_LEVEL_MAX);
+	level = (uint8_t) lintrafo(*ui->pAngleSensor2, CONFIG_SENSOR_MIN_VALUE, CONFIG_SENSOR_MAX_VALUE, SENSOR_LEVEL_MIN, SENSOR_LEVEL_MAX);
 	GLCD_PutBitmap(SENSOR_LEVEL_RIGHT, level, TFX100_RightArrowLevel, 0);
 
 	// Left Arm action indicator
